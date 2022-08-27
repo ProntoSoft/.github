@@ -8,21 +8,34 @@ on:
       AWS_SECRET_ACCESS_KEY:
         description: 'AWS_SECRET_ACCESS_KEY of the caller workflow'
         required: true
-      AWS_S3_BUCKET:
-        description: 'AWS_S3_BUCKET of the caller workflow'
+      AWS_S3_REGION:
+        description: 'AWS_S3_REGION of the caller workflow'
         required: true
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: sa-east-1
-      - name: Checkout
-        uses: actions/checkout@v2
+          aws-region: ${{ secrets.AWS_S3_REGION }}
+      - name: Set s3 bucket name
+        uses: sergeysova/jq-action@v2
+        id: bucket_name
+        with:
+          cmd: 'jq .domain app/.menos/config.json -r'
+      - name: Create bucket in S3
+        uses: aitorres/aws-s3-create-bucket@v1.2.0
+        with:
+          bucket-name: ${{ steps.bucket_name.outputs.value }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_S3_REGION }}
+          acl: 'public'
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
@@ -33,4 +46,4 @@ jobs:
       - name: Deploy
         uses: jonelantha/gatsby-s3-action@v1
         with:
-          dest-s3-bucket: ${{ secrets.AWS_S3_BUCKET }}
+          dest-s3-bucket: ${{ steps.bucket_name.outputs.value }}
