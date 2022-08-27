@@ -23,13 +23,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_S3_REGION }}
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
       - name: Set s3 bucket name
         uses: sergeysova/jq-action@v2
         id: bucket_name
         with:
-          cmd: "jq .domain $GITHUB_WORKSPACE/.menos/config.json -r"
+          cmd: "jq .domain ./.menos/config.json -r"
       - name: Create bucket in S3
         uses: aitorres/aws-s3-create-bucket@v1.2.0
         with:
