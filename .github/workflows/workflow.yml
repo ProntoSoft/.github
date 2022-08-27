@@ -28,7 +28,14 @@ jobs:
         id: bucket_name
         with:
           cmd: "jq .domain ./.menos/config.json -r"
+
+      - name: Check if the bucket exists
+        run: |
+          echo "bucket_exists=$(aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }})" >> $GITHUB_ENV
+          echo $bucket_exists
+      
       - name: Create bucket in S3
+        if: ${{ env.bucket_exists == false }}
         uses: aitorres/aws-s3-create-bucket@v1.2.0
         with:
           bucket-name: ${{ steps.bucket_name.outputs.value }}
