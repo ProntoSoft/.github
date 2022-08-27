@@ -30,6 +30,7 @@ jobs:
           cmd: "jq .domain ./.menos/config.json -r"
       - name: Check if the bucket exists
         run: |
+          set +e
           aws s3api head-bucket --bucket alternate-universe.biz > /dev/null 2>&1
           echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
           echo ${{ env.bucket_exists }}
@@ -43,6 +44,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_S3_REGION }}
           acl: 'public-read'
+      - name: Convert bucket to static website
+        if: ${{ env.bucket_exists != 0 }}
+        run: |
+          aws s3 website s3://${{ steps.bucket_name.outputs.value }}/ --index-document index.html
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
