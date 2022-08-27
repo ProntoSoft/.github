@@ -28,7 +28,8 @@ jobs:
         id: bucket_name
         with:
           cmd: "jq .domain ./.menos/config.json -r"
-
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: Check if the bucket exists
         run: |
           echo "bucket_exists=$(aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }})" >> $GITHUB_ENV
