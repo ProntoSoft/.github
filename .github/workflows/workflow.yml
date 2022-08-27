@@ -32,11 +32,12 @@ jobs:
         uses: mxschmitt/action-tmate@v3
       - name: Check if the bucket exists
         run: |
-          echo "bucket_exists=$(aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }})" >> $GITHUB_ENV
-          echo $bucket_exists
+          aws s3api head-bucket --bucket alternate-universe.biz > /dev/null 2>&1
+          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
+          echo ${{ env.bucket_exists }}
       
       - name: Create bucket in S3
-        if: ${{ env.bucket_exists == false }}
+        if: ${{ env.bucket_exists != 0 }}
         uses: aitorres/aws-s3-create-bucket@v1.2.0
         with:
           bucket-name: ${{ steps.bucket_name.outputs.value }}
