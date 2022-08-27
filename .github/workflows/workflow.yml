@@ -35,7 +35,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_S3_REGION }}
-          acl: 'public'
+          acl: 'public-read'
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
