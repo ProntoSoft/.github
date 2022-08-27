@@ -27,7 +27,7 @@ jobs:
         uses: sergeysova/jq-action@v2
         id: bucket_name
         with:
-          cmd: 'jq .domain app/.menos/config.json -r'
+          cmd: "jq .domain $GITHUB_WORKSPACE/.menos/config.json -r"
       - name: Create bucket in S3
         uses: aitorres/aws-s3-create-bucket@v1.2.0
         with:
