@@ -48,6 +48,9 @@ jobs:
         if: ${{ env.bucket_exists != 0 }}
         run: |
           aws s3 website s3://${{ steps.bucket_name.outputs.value }}/ --index-document index.html
+          echo '{"Version":"2012-10-17","Statement":[{"Sid":"PublicRead","Effect":"Allow","Principal":"*","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::BUCKET_NAME/*"}]}' > policy.json
+          sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" policy.json
+          aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://policy.json
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
