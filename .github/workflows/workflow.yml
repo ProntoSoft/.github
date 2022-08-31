@@ -57,15 +57,20 @@ jobs:
           sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" policy.json
           aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://policy.json
       - name: Create CloudFront Distribution
+        env: 
+          S3_DOMAIN: ${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
+          ALIAS: ${{ steps.bucket_name.outputs.value }}
         run: |
           set +e
-          echo '{"CallerReference":"CALLER_REFERENCE","Aliases":{"Quantity":1,"Items":["ALIAS"]},"DefaultRootObject":"index.html","Origins":{"Quantity":1,"Items":[{"Id":"S3_DOMAIN","DomainName":"S3_DOMAIN","OriginPath":"","CustomOriginConfig":{"OriginProtocolPolicy":"http-only","HTTPPort":80,"HTTPSPort":443}}]},"DefaultCacheBehavior":{"TargetOriginId":"S3_DOMAIN","ForwardedValues":{"QueryString":false,"Cookies":{"Forward":"none"},"Headers":{"Quantity":0},"QueryStringCacheKeys":{"Quantity":0}},"ViewerProtocolPolicy":"allow-all","MinTTL":0},"Comment":"","Enabled":true,"ViewerCertificate":{"CloudFrontDefaultCertificate":false,"ACMCertificateArn":"ACM_CERTIFICATE_ARN","SSLSupportMethod":"sni-only","CertificateSource":"acm"},"IsIPV6Enabled":true}' > cloudfront.json
-          sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.json
-          sed -i "s/ALIAS/${{ steps.bucket_name.outputs.value }}/g" cloudfront.json 
-          sed -i "s/S3_DOMAIN/${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com/g" cloudfront.json 
-          sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.json 
-          cat cloudfront.json
-          aws cloudfront create-distribution --distribution-config file://cloudfront.json
+          # Create CloudFront Distribution If does not exist
+          if !(aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1); then
+            echo '{"CallerReference":"CALLER_REFERENCE","Aliases":{"Quantity":1,"Items":["ALIAS"]},"DefaultRootObject":"index.html","Origins":{"Quantity":1,"Items":[{"Id":"S3_DOMAIN","DomainName":"S3_DOMAIN","OriginPath":"","CustomOriginConfig":{"OriginProtocolPolicy":"http-only","HTTPPort":80,"HTTPSPort":443}}]},"DefaultCacheBehavior":{"TargetOriginId":"S3_DOMAIN","ForwardedValues":{"QueryString":false,"Cookies":{"Forward":"none"},"Headers":{"Quantity":0},"QueryStringCacheKeys":{"Quantity":0}},"ViewerProtocolPolicy":"allow-all","MinTTL":0},"Comment":"","Enabled":true,"ViewerCertificate":{"CloudFrontDefaultCertificate":false,"ACMCertificateArn":"ACM_CERTIFICATE_ARN","SSLSupportMethod":"sni-only","CertificateSource":"acm"},"IsIPV6Enabled":true}' > cloudfront.json
+            sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.json
+            sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.json 
+            sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.json 
+            sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.json             
+            aws cloudfront create-distribution --distribution-config file://cloudfront.json
+          fi
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
