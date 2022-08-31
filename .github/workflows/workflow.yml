@@ -11,6 +11,9 @@ on:
       AWS_S3_REGION:
         description: 'AWS_S3_REGION of the caller workflow'
         required: true
+env:
+  DOMAIN: 'menos.xyz'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -27,7 +30,7 @@ jobs:
         uses: sergeysova/jq-action@v2
         id: bucket_name
         with:
-          cmd: "jq .domain ./.menos/config.json -r"
+          cmd: "echo \"$(jq .name ./.menos/config.json -r).${{ env.DOMAIN }}\""
       - name: Check if the bucket exists
         run: |
           set +e
@@ -50,6 +53,7 @@ jobs:
           echo '{"Version":"2012-10-17","Statement":[{"Sid":"PublicRead","Effect":"Allow","Principal":"*","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::BUCKET_NAME/*"}]}' > policy.json
           sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" policy.json
           aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://policy.json
+          aws cloudfront create-distribution --origin-domain-name ${{ steps.bucket_name.outputs.value }} --default-root-object index.html
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
