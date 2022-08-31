@@ -3,20 +3,20 @@ on:
   workflow_call:
     secrets:
       AWS_ACCESS_KEY_ID:
-        description: 'AWS_ACCESS_KEY_ID of the caller workflow'
+        description: "AWS_ACCESS_KEY_ID of the caller workflow"
         required: true
       AWS_SECRET_ACCESS_KEY:
-        description: 'AWS_SECRET_ACCESS_KEY of the caller workflow'
+        description: "AWS_SECRET_ACCESS_KEY of the caller workflow"
         required: true
       AWS_S3_REGION:
-        description: 'AWS_S3_REGION of the caller workflow'
+        description: "AWS_S3_REGION of the caller workflow"
         required: true
       ACM_CERTIFICATE_ARN:
-        description: 'ACM_CERTIFICATE_ARN of the caller workflow'
+        description: "ACM_CERTIFICATE_ARN of the caller workflow"
         required: true
-        
+
 env:
-  DOMAIN: 'menos.xyz'
+  DOMAIN: "menos.xyz"
 
 jobs:
   deploy:
@@ -34,12 +34,12 @@ jobs:
         uses: sergeysova/jq-action@v2
         id: bucket_name
         with:
-          cmd: "echo \"$(jq .name ./.menos/config.json -r).${{ env.DOMAIN }}\""
+          cmd: 'echo "$(jq .name ./.menos/config.json -r).${{ env.DOMAIN }}"'
       - name: Check if the bucket exists
         run: |
           set +e
           aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }} > /dev/null 2>&1
-          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV      
+          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
       - name: Create bucket in S3
         if: ${{ env.bucket_exists != 0 }}
         uses: aitorres/aws-s3-create-bucket@v1.2.0
@@ -48,7 +48,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_S3_REGION }}
-          acl: 'public-read'
+          acl: "public-read"
       - name: Configure static website
         if: ${{ env.bucket_exists != 0 }}
         run: |
@@ -56,7 +56,7 @@ jobs:
           sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" cloudfront.policy.json
           aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://cloudfront.policy.json
       - name: Create CloudFront Distribution
-        env: 
+        env:
           S3_DOMAIN: ${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
           ALIAS: ${{ steps.bucket_name.outputs.value }}
         run: |
@@ -80,3 +80,4 @@ jobs:
         uses: jonelantha/gatsby-s3-action@v1
         with:
           dest-s3-bucket: ${{ steps.bucket_name.outputs.value }}
+
