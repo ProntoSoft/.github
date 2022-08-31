@@ -1,0 +1,51 @@
+{
+  "CallerReference": "CALLER_REFERENCE",
+  "Aliases": {
+    "Quantity": 1,
+    "Items": [
+      "ALIAS"
+    ]
+  },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3_DOMAIN",
+        "DomainName": "S3_DOMAIN",
+        "OriginPath": "",
+        "CustomOriginConfig": {
+          "OriginProtocolPolicy": "http-only",
+          "HTTPPort": 80,
+          "HTTPSPort": 443
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3_DOMAIN",
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      },
+      "Headers": {
+        "Quantity": 0
+      },
+      "QueryStringCacheKeys": {
+        "Quantity": 0
+      }
+    },
+    "ViewerProtocolPolicy": "allow-all",
+    "MinTTL": 0
+  },
+  "Comment": "",
+  "Enabled": true,
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": false,
+    "ACMCertificateArn": "ACM_CERTIFICATE_ARN",
+    "SSLSupportMethod": "sni-only",
+    "CertificateSource": "acm"
+  },
+  "IsIPV6Enabled": true
+}
