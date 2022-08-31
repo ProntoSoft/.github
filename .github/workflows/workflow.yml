@@ -11,6 +11,10 @@ on:
       AWS_S3_REGION:
         description: 'AWS_S3_REGION of the caller workflow'
         required: true
+      ACM_CERTIFICATE_ARN:
+        description: 'ACM_CERTIFICATE_ARN of the caller workflow'
+        required: true
+        
 env:
   DOMAIN: 'menos.xyz'
 
@@ -35,8 +39,7 @@ jobs:
         run: |
           set +e
           aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }} > /dev/null 2>&1
-          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
-      
+          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV      
       - name: Create bucket in S3
         if: ${{ env.bucket_exists != 0 }}
         uses: aitorres/aws-s3-create-bucket@v1.2.0
@@ -51,9 +54,16 @@ jobs:
         run: |
           aws s3 website s3://${{ steps.bucket_name.outputs.value }}/ --index-document index.html
           echo '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadGetObject","Effect":"Allow","Principal":"*","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::BUCKET_NAME/*","Condition":{"NotIpAddress":{"aws:SourceIp":["173.245.48.0/20","103.21.244.0/22","103.22.200.0/22","103.31.4.0/22","141.101.64.0/18","108.162.192.0/18","190.93.240.0/20","188.114.96.0/20","197.234.240.0/22","198.41.128.0/17","162.158.0.0/15","104.16.0.0/13","104.24.0.0/14","172.64.0.0/13","131.0.72.0/22"]}}}]}' > policy.json
-          echo '{"CallerReference":"Wed-31-Aug-2022-02:18:42","Aliases":{"Quantity":1,"Items":["my-awesome-blog.menos.xyz"]},"DefaultRootObject":"index.html","Origins":{"Quantity":1,"Items":[{"Id":"my-awesome-blog.menos.xyz.s3-website-sa-east-1.amazonaws.com","DomainName":"my-awesome-blog.menos.xyz.s3-website-sa-east-1.amazonaws.com","OriginPath":"","CustomOriginConfig":{"OriginProtocolPolicy":"http-only","HTTPPort":80,"HTTPSPort":443}}]},"DefaultCacheBehavior":{"TargetOriginId":"my-awesome-blog.menos.xyz.s3-website-sa-east-1.amazonaws.com","ViewerProtocolPolicy":"allow-all","MinTTL":0},"Comment":"","Enabled":true,"ViewerCertificate":{"CloudFrontDefaultCertificate":false,"ACMCertificateArn":"arn:aws:acm:us-east-1:056056223931:certificate/b30b2f38-0b83-4d4c-88d9-08ab682e2328","CertificateSource":"acm"},"IsIPV6Enabled":true}' > cloudfront.json
           sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" policy.json
           aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://policy.json
+      - name: Create CloudFront Distribution
+        run: |
+          set +e
+          echo '{"CallerReference":"CALLER_REFERENCE","Aliases":{"Quantity":1,"Items":["DOMAIN"]},"DefaultRootObject":"index.html","Origins":{"Quantity":1,"Items":[{"Id":"S3_DOMAIN","DomainName":"S3_DOMAIN","OriginPath":"","CustomOriginConfig":{"OriginProtocolPolicy":"http-only","HTTPPort":80,"HTTPSPort":443}}]},"DefaultCacheBehavior":{"TargetOriginId":"S3_DOMAIN","ForwardedValues":{"QueryString":false,"Cookies":{"Forward":"none"},"Headers":{"Quantity":0},"QueryStringCacheKeys":{"Quantity":0}},"ViewerProtocolPolicy":"allow-all","MinTTL":0},"Comment":"","Enabled":true,"ViewerCertificate":{"CloudFrontDefaultCertificate":false,"ACMCertificateArn":"ACM_CERTIFICATE_ARN","SSLSupportMethod":"sni-only","CertificateSource":"acm"},"IsIPV6Enabled":true}' > cloudfront.json
+          sed -i "s/CALLER_REFERENCE/$(date +%s)/" cloudfront.json
+          sed -i "s/DOMAIN/${{ steps.bucket_name.outputs.value }}/" cloudfront.json 
+          sed -i "s/S3_DOMAIN/${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com/" cloudfront.json 
+          sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/" cloudfront.json 
           aws cloudfront create-distribution --distribution-config file://cloudfront.json
       - name: Use Node.js 14
         uses: actions/setup-node@v1
