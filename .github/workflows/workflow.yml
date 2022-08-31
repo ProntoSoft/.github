@@ -64,6 +64,7 @@ jobs:
           sed -i "s/DOMAIN/${{ steps.bucket_name.outputs.value }}/" cloudfront.json 
           sed -i "s/S3_DOMAIN/${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com/" cloudfront.json 
           sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/" cloudfront.json 
+          cat cloudfront.json
           aws cloudfront create-distribution --distribution-config file://cloudfront.json
       - name: Use Node.js 14
         uses: actions/setup-node@v1
