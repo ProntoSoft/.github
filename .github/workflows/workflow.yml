@@ -14,6 +14,12 @@ on:
       ACM_CERTIFICATE_ARN:
         description: "ACM_CERTIFICATE_ARN of the caller workflow"
         required: true
+      CLOUDFLARE_TOKEN: 
+        description: "CLOUDFLARE_TOKEN of the caller workflow"
+        required: true
+      CLOUDFLARE_ZONE:
+        description: "CLOUDFLARE_ZONE of the caller workflow"
+        required: true
 
 env:
   DOMAIN: "menos.xyz"
@@ -56,21 +62,36 @@ jobs:
           wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/s3.policy.json
           sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" s3.policy.json
           aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://s3.policy.json
+      - name: Check if CloudFront Distribution exists
+        run: |
+          set +e
+          aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1
+          echo "cloudfront_exists=$(echo $?)" >> $GITHUB_ENV
       - name: Create CloudFront Distribution
+        if: ${{ env.cloudfront_exists != 0 }}
         env:
           S3_DOMAIN: ${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
           ALIAS: ${{ steps.bucket_name.outputs.value }}
         run: |
           set +e
-          # Create CloudFront Distribution If does not exist
-          if !(aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1); then
-            wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/cloudfront.config.json
-            sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
-            sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
-            sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
-            sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.config.json             
-            aws cloudfront create-distribution --distribution-config file://cloudfront.config.json
-          fi
+          sudo apt-get -y install jq
+          wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/cloudfront.config.json
+          sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
+          sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
+          sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
+          sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.config.json             
+          cloudfront_domain=$(aws cloudfront create-distribution --distribution-config file://cloudfront.config.json | jq .Distribution.DomainName -r)
+          echo "cloudfront_domain=$cloudfront_domain" >> $GITHUB_ENV
+      - uses: rez0n/create-dns-record@v2.1
+        if: ${{ env.cloudfront_exists != 0 }}
+        with:
+          type: "CNAME"
+          name: "${{ steps.bucket_name.outputs.value }}"
+          content: "${{ env.cloudfront_domain }}"
+          ttl: 1
+          proxied: true
+          token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          zone: ${{ secrets.CLOUDFLARE_ZONE }}
       - name: Use Node.js 14
         uses: actions/setup-node@v1
         with:
