@@ -55,8 +55,9 @@ jobs:
         if: ${{ env.bucket_exists != 0 }}
         run: |
           aws s3 website s3://${{ steps.bucket_name.outputs.value }}/ --index-document index.html
-          sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" cloudfront.policy.json
-          aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://cloudfront.policy.json
+          wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/s3.policy.json
+          sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" s3.policy.json
+          aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://s3.policy.json
       - name: Create CloudFront Distribution
         env:
           S3_DOMAIN: ${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
@@ -65,6 +66,7 @@ jobs:
           set +e
           # Create CloudFront Distribution If does not exist
           if !(aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1); then
+            wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/cloudfront.config.json
             sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
             sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
             sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
