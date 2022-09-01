@@ -3,20 +3,20 @@ on:
   workflow_call:
     secrets:
       AWS_ACCESS_KEY_ID:
-        description: 'AWS_ACCESS_KEY_ID of the caller workflow'
+        description: "AWS_ACCESS_KEY_ID of the caller workflow"
         required: true
       AWS_SECRET_ACCESS_KEY:
-        description: 'AWS_SECRET_ACCESS_KEY of the caller workflow'
+        description: "AWS_SECRET_ACCESS_KEY of the caller workflow"
         required: true
       AWS_S3_REGION:
-        description: 'AWS_S3_REGION of the caller workflow'
+        description: "AWS_S3_REGION of the caller workflow"
         required: true
       ACM_CERTIFICATE_ARN:
-        description: 'ACM_CERTIFICATE_ARN of the caller workflow'
+        description: "ACM_CERTIFICATE_ARN of the caller workflow"
         required: true
-        
+
 env:
-  DOMAIN: 'menos.xyz'
+  DOMAIN: "menos.xyz"
 
 jobs:
   deploy:
@@ -34,12 +34,12 @@ jobs:
         uses: sergeysova/jq-action@v2
         id: bucket_name
         with:
-          cmd: "echo \"$(jq .name ./.menos/config.json -r).${{ env.DOMAIN }}\""
+          cmd: 'echo "$(jq .name ./.menos/config.json -r).${{ env.DOMAIN }}"'
       - name: Check if the bucket exists
         run: |
           set +e
           aws s3api head-bucket --bucket ${{ steps.bucket_name.outputs.value }} > /dev/null 2>&1
-          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV      
+          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
       - name: Create bucket in S3
         if: ${{ env.bucket_exists != 0 }}
         uses: aitorres/aws-s3-create-bucket@v1.2.0
@@ -48,28 +48,26 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_S3_REGION }}
-          acl: 'public-read'
+          acl: "public-read"
       - name: Configure static website
         if: ${{ env.bucket_exists != 0 }}
         run: |
           aws s3 website s3://${{ steps.bucket_name.outputs.value }}/ --index-document index.html
-          echo '{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadGetObject","Effect":"Allow","Principal":"*","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"arn:aws:s3:::BUCKET_NAME/*","Condition":{"NotIpAddress":{"aws:SourceIp":["173.245.48.0/20","103.21.244.0/22","103.22.200.0/22","103.31.4.0/22","141.101.64.0/18","108.162.192.0/18","190.93.240.0/20","188.114.96.0/20","197.234.240.0/22","198.41.128.0/17","162.158.0.0/15","104.16.0.0/13","104.24.0.0/14","172.64.0.0/13","131.0.72.0/22"]}}}]}' > policy.json
-          sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" policy.json
-          aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://policy.json
+          sed -i "s/BUCKET_NAME/${{ steps.bucket_name.outputs.value }}/" cloudfront.policy.json
+          aws s3api put-bucket-policy --bucket ${{ steps.bucket_name.outputs.value }} --policy file://cloudfront.policy.json
       - name: Create CloudFront Distribution
-        env: 
+        env:
           S3_DOMAIN: ${{ steps.bucket_name.outputs.value }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
           ALIAS: ${{ steps.bucket_name.outputs.value }}
         run: |
           set +e
           # Create CloudFront Distribution If does not exist
           if !(aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1); then
-            echo '{"CallerReference":"CALLER_REFERENCE","Aliases":{"Quantity":1,"Items":["ALIAS"]},"DefaultRootObject":"index.html","Origins":{"Quantity":1,"Items":[{"Id":"S3_DOMAIN","DomainName":"S3_DOMAIN","OriginPath":"","CustomOriginConfig":{"OriginProtocolPolicy":"http-only","HTTPPort":80,"HTTPSPort":443}}]},"DefaultCacheBehavior":{"TargetOriginId":"S3_DOMAIN","ForwardedValues":{"QueryString":false,"Cookies":{"Forward":"none"},"Headers":{"Quantity":0},"QueryStringCacheKeys":{"Quantity":0}},"ViewerProtocolPolicy":"allow-all","MinTTL":0},"Comment":"","Enabled":true,"ViewerCertificate":{"CloudFrontDefaultCertificate":false,"ACMCertificateArn":"ACM_CERTIFICATE_ARN","SSLSupportMethod":"sni-only","CertificateSource":"acm"},"IsIPV6Enabled":true}' > cloudfront.json
-            sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.json
-            sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.json 
-            sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.json 
-            sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.json             
-            aws cloudfront create-distribution --distribution-config file://cloudfront.json
+            sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
+            sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
+            sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
+            sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.config.json             
+            aws cloudfront create-distribution --distribution-config file://cloudfront.config.json
           fi
       - name: Use Node.js 14
         uses: actions/setup-node@v1
@@ -82,3 +80,4 @@ jobs:
         uses: jonelantha/gatsby-s3-action@v1
         with:
           dest-s3-bucket: ${{ steps.bucket_name.outputs.value }}
+
