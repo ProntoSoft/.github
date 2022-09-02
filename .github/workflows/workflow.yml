@@ -104,7 +104,7 @@ jobs:
           cloudfront_domain=$(aws cloudfront create-distribution --distribution-config file://cloudfront.config.json | jq .Distribution.DomainName -r)
           echo "cloudfront_domain=$cloudfront_domain" >> $GITHUB_ENV
       - uses: rez0n/create-dns-record@v2.1
-        if: (${{ env.cloudfront_exists != 0 }} && ${{ env.custom_domain == "" }})
+        if: env.cloudfront_exists != 0 && env.custom_domain == "" 
         with:
           type: "CNAME"
           name: "${{ env.bucket_name }}"
