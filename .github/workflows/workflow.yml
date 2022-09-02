@@ -62,66 +62,65 @@ jobs:
             echo "bucket_name=$subDomain.$domain" >> $GITHUB_ENV
           fi
           echo ${{ env.bucket_name }}
-      # - name: Check if the bucket exists
-      #   run: |
-      #     set +e
-      #     aws s3api head-bucket --bucket ${{ env.bucket_name }} > /dev/null 2>&1
-      #     echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
-      # - name: Create bucket in S3
-      #   if: ${{ env.bucket_exists != 0 }}
-      #   uses: aitorres/aws-s3-create-bucket@v1.2.0
-      #   with:
-      #     bucket-name: ${{ env.bucket_name }}
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_S3_REGION }}
-      #     acl: "public-read"
-      # - name: Configure static website
-      #   if: ${{ env.bucket_exists != 0 }}
-      #   run: |
-      #     aws s3 website s3://${{ env.bucket_name }}/ --index-document index.html
-      #     wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/s3.policy.json
-      #     sed -i "s/BUCKET_NAME/${{ env.bucket_name }}/" s3.policy.json
-      #     aws s3api put-bucket-policy --bucket ${{ env.bucket_name }} --policy file://s3.policy.json
-      # - name: Check if CloudFront Distribution exists
-      #   run: |
-      #     set +e
-      #     aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1
-      #     echo "cloudfront_exists=$(echo $?)" >> $GITHUB_ENV
-      # - name: Create CloudFront Distribution
-      #   if: ${{ env.cloudfront_exists != 0 }}
-      #   env:
-      #     S3_DOMAIN: ${{ env.bucket_name }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
-      #     ALIAS: ${{ env.bucket_name }}
-      #   run: |
-      #     set +e
-      #     sudo apt-get -y install jq
-      #     wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/cloudfront.config.json
-      #     sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
-      #     sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
-      #     sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
-      #     sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.config.json             
-      #     cloudfront_domain=$(aws cloudfront create-distribution --distribution-config file://cloudfront.config.json | jq .Distribution.DomainName -r)
-      #     echo "cloudfront_domain=$cloudfront_domain" >> $GITHUB_ENV
-      # - uses: rez0n/create-dns-record@v2.1
-      #   if: ${{ env.cloudfront_exists != 0 }}
-      #   with:
-      #     type: "CNAME"
-      #     name: "${{ env.bucket_name }}"
-      #     content: "${{ env.cloudfront_domain }}"
-      #     ttl: 1
-      #     proxied: true
-      #     token: ${{ secrets.CLOUDFLARE_TOKEN }}
-      #     zone: ${{ secrets.CLOUDFLARE_ZONE }}
-      # - name: Use Node.js 14
-      #   uses: actions/setup-node@v1
-      #   with:
-      #     node-version: 14.x
-      # - name: Build
-      #   run: |
-      #     yarn install && yarn build
-      # - name: Deploy
-      #   uses: jonelantha/gatsby-s3-action@v1
-      #   with:
-      #     dest-s3-bucket: ${{ env.bucket_name }}
-
+      - name: Check if the bucket exists
+        run: |
+          set +e
+          aws s3api head-bucket --bucket ${{ env.bucket_name }} > /dev/null 2>&1
+          echo "bucket_exists=$(echo $?)" >> $GITHUB_ENV
+      - name: Create bucket in S3
+        if: ${{ env.bucket_exists != 0 }}
+        uses: aitorres/aws-s3-create-bucket@v1.2.0
+        with:
+          bucket-name: ${{ env.bucket_name }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_S3_REGION }}
+          acl: "public-read"
+      - name: Configure static website
+        if: ${{ env.bucket_exists != 0 }}
+        run: |
+          aws s3 website s3://${{ env.bucket_name }}/ --index-document index.html
+          wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/s3.policy.json
+          sed -i "s/BUCKET_NAME/${{ env.bucket_name }}/" s3.policy.json
+          aws s3api put-bucket-policy --bucket ${{ env.bucket_name }} --policy file://s3.policy.json
+      - name: Check if CloudFront Distribution exists
+        run: |
+          set +e
+          aws cloudfront list-distributions | grep '"DomainName": "'${{ env.S3_DOMAIN }}'"' > /dev/null 2>&1
+          echo "cloudfront_exists=$(echo $?)" >> $GITHUB_ENV
+      - name: Create CloudFront Distribution
+        if: ${{ env.cloudfront_exists != 0 }}
+        env:
+          S3_DOMAIN: ${{ env.bucket_name }}.s3-website-${{ secrets.AWS_S3_REGION }}.amazonaws.com
+          ALIAS: ${{ env.bucket_name }}
+        run: |
+          set +e
+          sudo apt-get -y install jq
+          wget https://raw.githubusercontent.com/ProntoSoft/.github/main/.github/workflows/cloudfront.config.json
+          sed -i "s/CALLER_REFERENCE/$(date +%s)/g" cloudfront.config.json
+          sed -i "s/ALIAS/${{ env.ALIAS }}/g" cloudfront.config.json 
+          sed -i "s/S3_DOMAIN/${{ env.S3_DOMAIN }}/g" cloudfront.config.json 
+          sed -i "s/ACM_CERTIFICATE_ARN/${{ secrets.ACM_CERTIFICATE_ARN }}/g" cloudfront.config.json             
+          cloudfront_domain=$(aws cloudfront create-distribution --distribution-config file://cloudfront.config.json | jq .Distribution.DomainName -r)
+          echo "cloudfront_domain=$cloudfront_domain" >> $GITHUB_ENV
+      - uses: rez0n/create-dns-record@v2.1
+        if: ${{ env.cloudfront_exists != 0 && env.custom_domain == "" }}
+        with:
+          type: "CNAME"
+          name: "${{ env.bucket_name }}"
+          content: "${{ env.cloudfront_domain }}"
+          ttl: 1
+          proxied: true
+          token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          zone: ${{ secrets.CLOUDFLARE_ZONE }}
+      - name: Use Node.js 14
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+      - name: Build
+        run: |
+          yarn install && yarn build
+      - name: Deploy
+        uses: jonelantha/gatsby-s3-action@v1
+        with:
+          dest-s3-bucket: ${{ env.bucket_name }}
