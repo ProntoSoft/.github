@@ -42,8 +42,8 @@ jobs:
           sudo apt-get -y install jq
           # Check if actions are enabled
           enabled="false"
-          if ($(jq 'has("enabled")' config.json)); then 
-              if $(jq .enabled config.json -r); then
+          if ($(jq 'has("enabled")' ${{ env.CONFIG }})); then 
+              if $(jq .enabled ${{ env.CONFIG }} -r); then
                   enabled="true"
               fi
           fi
