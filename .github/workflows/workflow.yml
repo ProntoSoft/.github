@@ -40,6 +40,17 @@ jobs:
       - name: Set s3 bucket name
         run: |
           sudo apt-get -y install jq
+          # Check if actions are enabled
+          enabled="false"
+          if ($(jq 'has("enabled")' config.json)); then 
+              if $(jq .enabled config.json -r); then
+                  enabled="true"
+              fi
+          fi
+          if [ "$enabled" = "false" ]; then
+              echo "Actions Not enabled from config file; exiting"
+              exit 1;
+          fi
           # Check if customDomain exists
           if ($(jq 'has("customDomain")' ${{ env.CONFIG }})); then 
             domain=$(jq .customDomain ${{ env.CONFIG }} -r)
