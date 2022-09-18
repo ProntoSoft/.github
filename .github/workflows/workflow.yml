@@ -52,18 +52,18 @@ jobs:
               exit 1;
           fi
           # Check if customDomain exists
-          if ($(jq 'has("customDomain")' ${{ env.CONFIG }})); then 
-            domain=$(jq .customDomain ${{ env.CONFIG }} -r)
+          if ($(cat ${{ env.CONFIG }} | jq '.site | has("customDomain")')); then 
+            domain=$(jq .site.customDomain ${{ env.CONFIG }} -r)
             echo "custom_domain=$domain" >> $GITHUB_ENV
           else
             domain=${{ env.DOMAIN }}
           fi
 
           # Set subDomain
-          if ($(jq 'has("subDomain")' ${{ env.CONFIG }})); then 
-            subDomain=$(jq .subDomain ${{ env.CONFIG }} -r)
+          if ($(cat ${{ env.CONFIG }} | jq '.site | has("subDomain")')); then 
+            subDomain=$(jq .site.subDomain ${{ env.CONFIG }} -r)
           else
-            subDomain=$(jq .name ${{ env.CONFIG }} -r)
+            subDomain=$(jq .site.name ${{ env.CONFIG }} -r)
           fi
           
           # Check if subDomain is empty
